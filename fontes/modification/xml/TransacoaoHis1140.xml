@@ -1,0 +1,199 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<modification>
+  <id>CriaTransacoesContabeisHist1140</id>
+  <name>Cria Transações Contábeis Hist. 1140</name>
+  <ecidade-version>2.3.41</ecidade-version>
+
+  <file path='con1_cadastrotransacao011.php'>
+    <operation>
+      <search><![CDATA[</body>]]></search>
+      <add position="before">
+        <![CDATA[
+        
+
+	  <?php  if (db_getsession('DB_login') === "dbseller" && db_getsession("DB_id_usuario") === "1") { ?>
+	  <form name="form1140" method="post" action="con1_criatransacao1140.php">
+	  <center>
+	   <fieldset style="margin-top: 50px; width: 300px; ">
+	   <legend>Criar Transações Histórico 1140</legend>
+	    <table  align="center" >
+	      <tr>
+		<td> <input type="button" name="processar1140" id='processar1140' value="Processar"  > </td>
+	      </tr>
+	    </table>
+	   </fieldset>
+	  </center>
+	  </form>
+	 <?php } ?>
+
+        <script>
+
+		$('processar1140').observe("click", function() {
+
+			var lConfirm = confirm("Será Criado Transações para histórico 1140 ! Confirmar ? ");
+			if (  lConfirm == false) {
+				 return false;
+			} 
+			var oParam             = new Object();
+			oParam.exec            = 'salvarTransacao1140';
+		
+			js_divCarregando("Aguarde, salvando dados...", "msgBox");
+		        var oAjax = new Ajax.Request("con4_cadastrotransacao.RPC.php",
+		                        {method:'post',
+		 			 parameters:'json='+Object.toJSON(oParam),
+		                         onComplete: js_finalizaSalvarTransacao1140});
+		});
+
+		function js_finalizaSalvarTransacao1140(oAjax) {
+		
+			  js_removeObj("msgBox");
+			  var oRetorno = eval("("+oAjax.responseText+")");
+			  alert(oRetorno.message.urlDecode());
+		}	  
+
+        </script>
+
+        ]]></add>
+    </operation>
+  </file>
+
+
+  <file path='con4_cadastrotransacao.RPC.php'>
+    <operation>
+      <search><![CDATA[switch ($oParam->exec) {]]></search>
+      <add position="after">
+        <![CDATA[
+
+	case 'salvarTransacao1140':
+ 
+		db_inicio_transacao();
+		
+		try {
+			
+			// Primeiro Verificamos se já não foi Incluído:
+			$oDaoContrans = db_utils::getDao("contrans");
+			$sWhere = "c45_coddoc in (2013, 2014, 2015, 2016, 2017, 2018, 2019, 2020, 2007, 2008, 2009, 2010, 2011, 2012) ";
+			
+			$sSqlVerifica = $oDaoContrans->sql_query_file ( null,  "*", null, $sWhere);
+			$rsVerifica   = $oDaoContrans->sql_record($sSqlVerifica);
+			if ($oDaoContrans->numrows > 0) {
+				throw new Exception("Procedimento Já Executado.\nPlugin TransacoaoHis1140 pode ser Desativado.");
+			}
+			
+			
+			// verificamos as instituições
+			$oDaoDBConfig        = db_utils::getDao("db_config");
+			$sSqlInstituicoes    = $oDaoDBConfig->sql_query_file(null, " codigo ", null, null);
+			$rsInstituicoes      = $oDaoDBConfig->sql_record($sSqlInstituicoes);
+      $aInstituicoes       = db_utils::getColectionByRecord($rsInstituicoes);
+                           
+      $iAno                = 2015;
+      $sPrimeiroLancamento = "Primeiro Lançamento";
+      $sSegundoLancamento  = "Segundo Lancamento";  
+      $iCodHist            = 1140;
+      
+      $aDocumentosPrimeiroLancamento = array(2013, 2014, 2015, 2016, 2017, 2018, 2019, 2020, 2007, 2008, 2009, 2010, 2011, 2012);
+      $aDocumentosSegundoLancamento  = array(2007, 2008, 2009, 2010, 2011, 2012);
+      
+      
+      foreach ($aInstituicoes as $iInstit => $oInstit) {
+      	
+      	foreach ($aDocumentosPrimeiroLancamento as $iIndice => $iValor)  {
+      			
+      		$oDaoContrans     = db_utils::getDao("contrans");
+      		$oDaoContransLan  = db_utils::getDao("contranslan");
+      		
+      		$oDaoContrans->c45_anousu   = $iAno; 
+      		$oDaoContrans->c45_coddoc   = $iValor;
+      		$oDaoContrans->c45_instit   = $oInstit->codigo;
+      		$oDaoContrans->incluir(null);
+      		if ($oDaoContrans->erro_status == 0) {
+      			throw new Exception("Não foi possível salvar os dados do lançamento.\n\n{$oDaoContrans->erro_msg}");
+      		}
+ 
+      		//faz o primeiro lancamento
+      		$oDaoContransLan->c46_seqtrans     = $oDaoContrans->c45_seqtrans;
+                $oDaoContransLan->c46_codhist      = 1140;
+                $oDaoContransLan->c46_obs          = $sPrimeiroLancamento;
+                $oDaoContransLan->c46_valor        = 0;
+                $oDaoContransLan->c46_obrigatorio  = 'true';
+                $oDaoContransLan->c46_evento       = 0;
+                $oDaoContransLan->c46_descricao    = $sPrimeiroLancamento; 
+                $oDaoContransLan->c46_ordem        = 1;
+                $oDaoContransLan->incluir(null);
+                if ($oDaoContransLan->erro_status == 0) {
+          	  throw new Exception("Não foi possível salvar os dados do lançamento.\n\n{$oDaoContransLan->erro_msg}");
+                }
+          
+          // verifica array de segundo lancamento para fazer
+          if ( in_array($iValor, $aDocumentosSegundoLancamento) ) {
+          	
+          	$oDaoContransLan  = db_utils::getDao("contranslan");
+          	
+          	//faz o Segundo lancamento
+          	$oDaoContransLan->c46_seqtrans     = $oDaoContrans->c45_seqtrans;
+          	$oDaoContransLan->c46_codhist      = 1140;
+          	$oDaoContransLan->c46_obs          = $sSegundoLancamento;
+          	$oDaoContransLan->c46_valor        = 0;
+          	$oDaoContransLan->c46_obrigatorio  = 'true';
+          	$oDaoContransLan->c46_evento       = 0;
+          	$oDaoContransLan->c46_descricao    = $sSegundoLancamento;
+          	$oDaoContransLan->c46_ordem        = 2;
+          	
+          	$oDaoContransLan->incluir(null);
+          	
+          	if ($oDaoContransLan->erro_status == 0) {
+          		throw new Exception("Não foi possível salvar os dados do lançamento.\n\n{$oDaoContransLan->erro_msg}");
+          	}
+          	
+          }
+      	}
+      	
+      }
+      
+      /// criar os vinculos de documentos e estornos  vinculoeventoscontabeis
+      $aDocumentoInclusaoEstorno     = array( "2013" => "2014",
+					      "2015" => "2016",
+					      "2017" => "2018",
+					      "2019" => "2020",
+					      "2007" => "2008",
+					      "2009" => "2010",
+					      "2011" => "2012"
+      );      
+     foreach ( $aDocumentoInclusaoEstorno as  $iInclusao => $iEstorno) {
+     	
+     	 $oVinculoEventosContabeis =  db_utils::getDao("vinculoeventoscontabeis");
+     	 
+     	 $oVinculoEventosContabeis->c115_conhistdocinclusao = $iInclusao;
+     	 $oVinculoEventosContabeis->c115_conhistdocestorno  = $iEstorno;
+     	 
+     	 $oVinculoEventosContabeis->incluir(null);
+     	 
+     	 if ($oVinculoEventosContabeis->erro_status == 0) {
+     	 	throw new Exception("Não foi possível salvar os dados do lançamento.\n\n{$oVinculoEventosContabeis->erro_msg}");
+     	 }
+     	 
+     }
+	
+			$oRetorno->message = urlencode("Evento contábil salvo com sucesso.");
+			db_fim_transacao(false);
+	
+		} catch (Exception $eException) {
+	
+			$oRetorno->status  = 2;
+			$oRetorno->message = str_replace("\\n", "\n", urlencode($eException->getMessage()));
+			db_fim_transacao(true);
+		}
+		break;
+	
+	
+        
+
+        ]]></add>
+    </operation>
+  </file>
+
+
+
+
+</modification>

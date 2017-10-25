@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<manifest>
+  <plugin name="TransacoaoHis1140" label="Cria Transações Contábeis Hist. 1140" plugin-version="1.0" ecidade-version="2.3.41" id-modulo="209">
+    <files>
+      <file name="TransacoaoHis1140.xml"  path="/modification/xml/TransacoaoHis1140.xml" />
+    </files>
+  </plugin>
+</manifest>
